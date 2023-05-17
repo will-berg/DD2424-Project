@@ -3,29 +3,43 @@ import torch.nn as nn
 from torchvision import datasets, models, transforms
 import torch.optim as optim
 
-# Task 1
-#oxford_dataset = torch.utils.data.Subset(oxford_dataset)
 
-#i = 0
-#for img, cl in oxford_dataset:
-#  img.save(f"cat_explosion_{i}.png")
-#  i += 1
+# Dataset directory
+data_dir = './datasets/oxfordIIITPet/'
+
+# Load the dataset for label extraction
+oxford_dataset = datasets.OxfordIIITPet(root=data_dir, download=False)
+
+# Map new labels 'dog' and 'cat' to the original labels
+dogs = ['American Bulldog', 'American Pit Bull Terrier', 'Basset Hound', 'Beagle', 'Boxer', 'Chihuahua', 'English Cocker Spaniel', 'English Setter']
+cats = ['Abyssinian', 'Bengal', 'Birman', 'Bombay', 'British Shorthair', 'Egyptian Mau', 'German Shorthaired', 'Great Pyrenees', 'Havanese', 'Japanese Chin', 'Keeshond', 'Leonberger', 'Maine Coon', 'Miniature Pinscher', 'Newfoundland', 'Persian', 'Pomeranian', 'Pug', 'Ragdoll', 'Russian Blue', 'Saint Bernard', 'Samoyed', 'Scottish Terrier', 'Shiba Inu', 'Siamese', 'Sphynx', 'Staffordshire Bull Terrier', 'Wheaten Terrier', 'Yorkshire Terrier']
+dogs_labels = [oxford_dataset.class_to_idx[dog] for dog in dogs]
+cats_labels = [oxford_dataset.class_to_idx[cat] for cat in cats]
+
+label_map = {
+    'dog': dogs_labels,
+    'cat': cats_labels
+}
+
+# Define the target transform function
+def target_transform(target):
+    if target in label_map['dog']:
+        return 0  # Assign label 0 for dogs
+    elif target in label_map['cat']:
+        return 1  # Assign label 1 for cats
+    else:
+        raise ValueError(f"Unknown label: {target}")
+
+# Define the data transforms
+transform = transforms.Compose([
+		transforms.ToTensor()
+	])
+
+# Load the dataset with target transforms and change the classes
+oxford_dataset_dog_cat = datasets.OxfordIIITPet(root=data_dir, transform=transform, target_transform=target_transform)
+oxford_dataset_dog_cat.classes = ['dog', 'cat']
 
 
-#classes = oxford_dataset.classes
-#
-#dogs = ['American Bulldog', 'American Pit Bull Terrier', 'Basset Hound', 'Beagle', 'Boxer', 'Chihuahua', 'English Cocker Spaniel', 'English Setter']
-#cats = ['Abyssinian', 'Bengal', 'Birman', 'Bombay', 'British Shorthair', 'Egyptian Mau', 'German Shorthaired', 'Great Pyrenees', 'Havanese', 'Japanese Chin', 'Keeshond', 'Leonberger', 'Maine Coon', 'Miniature Pinscher', 'Newfoundland', 'Persian', 'Pomeranian', 'Pug', 'Ragdoll', 'Russian Blue', 'Saint Bernard', 'Samoyed', 'Scottish Terrier', 'Shiba Inu', 'Siamese', 'Sphynx', 'Staffordshire Bull Terrier', 'Wheaten Terrier', 'Yorkshire Terrier']
-#
-#dogs_labels = [oxford_dataset.class_to_idx[dog] for dog in dogs]
-#cats_labels = [oxford_dataset.class_to_idx[cat] for cat in cats]
-#
-#breed_to_dog_cat = {}
-#for dog_label in dogs_labels:
-#    breed_to_dog_cat[dog_label] = 0
-#
-#for cat_label in cats_labels:
-#    breed_to_dog_cat[cat_label] = 1
 
 # Parameters
 learning_rate = 0.001
