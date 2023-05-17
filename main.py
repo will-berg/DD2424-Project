@@ -107,7 +107,8 @@ def training_accuracy(model, training_set):
 	acc = correct.item() / len(training_set)
 	print(f"Training accuracy: {acc:.4f}")
 
-if __name__ == "__main__":
+
+def train_normal():
 	transform = transforms.Compose([
 		transforms.RandomCrop([300, 300], 1, pad_if_needed=True),
 		transforms.ToTensor()
@@ -124,6 +125,133 @@ if __name__ == "__main__":
 	# train(model, training_set, optimizer)
 	# test(model, testing_set)
 	training_accuracy(model, training_set)
+
+
+
+def find_nr_layers():
+	transform = transforms.Compose([
+		transforms.RandomCrop([300, 300], 1, pad_if_needed=True),
+		transforms.ToTensor()
+	])
+	oxford_dataset = datasets.OxfordIIITPet("./datasets/oxfordIIITPet/", download=True, transform=transform)
+
+	training_set, testing_set = torch.utils.data.random_split(oxford_dataset, [int(0.90 * len(oxford_dataset)), int(0.10 * len(oxford_dataset))])
+
+	# fintune only last layer
+	print("Last layer fine-tuned")
+	model = models.resnet18(weights="ResNet18_Weights.DEFAULT")
+	model.fc = nn.Linear(512, 37)
+	optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+	train(model, training_set, optimizer)
+	test(model, testing_set)
+
+	# fintune two last layers instead of only last
+	print("Last 2 layers fine-tuned")
+	model = models.resnet18(weights="ResNet18_Weights.DEFAULT")
+	model.fc = nn.Linear(512, 37)
+	model.layer4.requires_grad = True
+	optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+	train(model, training_set, optimizer)
+	test(model, testing_set)
+
+	# fintune three last layers instead of only last
+	print("Last 3 layers fine-tuned")
+	model = models.resnet18(weights="ResNet18_Weights.DEFAULT")
+	model.fc = nn.Linear(512, 37)
+	model.layer3.requires_grad = True
+	model.layer4.requires_grad = True
+	optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+	train(model, training_set, optimizer)
+	test(model, testing_set)
+
+	# Seems weird that layer 3 and 4 are third and second to last, but copilot chat insists that it is correct with motivation :shrug:
+
+def find_learning_rate():
+	transform = transforms.Compose([
+		transforms.RandomCrop([300, 300], 1, pad_if_needed=True),
+		transforms.ToTensor()
+	])
+	oxford_dataset = datasets.OxfordIIITPet("./datasets/oxfordIIITPet/", download=True, transform=transform)
+
+	training_set, testing_set = torch.utils.data.random_split(oxford_dataset, [int(0.90 * len(oxford_dataset)), int(0.10 * len(oxford_dataset))])
+
+	# Course search
+	learning_rates = [0.0001, 0.001, 0.01, 0.1, 1]
+	for learning_rate in learning_rates:
+		print(f"Learning rate: {learning_rate}")
+		model = models.resnet18(weights="ResNet18_Weights.DEFAULT")
+		model.fc = nn.Linear(512, 37)
+		optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+		train(model, training_set, optimizer)
+		test(model, testing_set)
+
+	# TODO: implement fine search based on results of above 
+
+def find_data_augmentation():
+
+	# Data augmentation 1
+	transform1 = transforms.Compose([
+		transforms.RandomCrop([300, 300], 1, pad_if_needed=True),
+		transforms.RandomHorizontalFlip(),
+		transforms.RandomRotation(10),
+		transforms.ToTensor()
+	])
+
+	# Data augmentation 2
+	transform2 = transforms.Compose([
+		transforms.RandomCrop([300, 300], 1, pad_if_needed=True),
+		transforms.RandomHorizontalFlip(),
+		transforms.RandomRotation(10),
+		transforms.RandomResizedCrop(300, scale=(0.5, 1.0)),
+		transforms.ToTensor()
+	])
+
+	# Data augmentation 3
+	transform3 = transforms.Compose([
+		transforms.RandomCrop([300, 300], 1, pad_if_needed=True),
+		transforms.RandomHorizontalFlip(),
+		transforms.RandomRotation(10),
+		transforms.RandomResizedCrop(300, scale=(0.5, 1.0)),
+		transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5),
+		transforms.ToTensor()
+	])
+
+	dataset1 = datasets.OxfordIIITPet("./datasets/oxfordIIITPet/", download=True, transform=transform1)
+	dataset2 = datasets.OxfordIIITPet("./datasets/oxfordIIITPet/", download=True, transform=transform2)
+	dataset3 = datasets.OxfordIIITPet("./datasets/oxfordIIITPet/", download=True, transform=transform3)
+
+	training_set1, testing_set1 = torch.utils.data.random_split(dataset1, [int(0.90 * len(dataset1)), int(0.10 * len(dataset1))])
+	training_set2, testing_set2 = torch.utils.data.random_split(dataset2, [int(0.90 * len(dataset2)), int(0.10 * len(dataset2))])
+	training_set3, testing_set3 = torch.utils.data.random_split(dataset3, [int(0.90 * len(dataset3)), int(0.10 * len(dataset3))])
+
+	print("Data augmentation 1")
+	model1 = models.resnet18(weights="ResNet18_Weights.DEFAULT")
+	model1.fc = nn.Linear(512, 37)
+	optimizer1 = optim.Adam(model1.parameters(), lr=learning_rate)
+	train(model1, training_set1, optimizer1)
+	test(model1, testing_set1)
+
+	print("Data augmentation 2")
+	model2 = models.resnet18(weights="ResNet18_Weights.DEFAULT")
+	model2.fc = nn.Linear(512, 37)
+	optimizer2 = optim.Adam(model2.parameters(), lr=learning_rate)
+	train(model2, training_set2, optimizer2)
+	test(model2, testing_set2)
+
+	print("Data augmentation 3")
+	model3 = models.resnet18(weights="ResNet18_Weights.DEFAULT")
+	model3.fc = nn.Linear(512, 37)
+	optimizer3 = optim.Adam(model3.parameters(), lr=learning_rate)
+	train(model3, training_set3, optimizer3)
+	test(model3, testing_set3)
+
+
+def find_batch_norm():
+	pass
+
+
+if __name__ == "__main__":
+	train()
 
 
 
