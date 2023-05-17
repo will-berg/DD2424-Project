@@ -137,7 +137,6 @@ def find_nr_layers():
 
 	training_set, testing_set = torch.utils.data.random_split(oxford_dataset, [int(0.90 * len(oxford_dataset)), int(0.10 * len(oxford_dataset))])
 
-	# fintune only last layer
 	print("Last layer fine-tuned")
 	model = models.resnet18(weights="ResNet18_Weights.DEFAULT")
 	model.fc = nn.Linear(512, 37)
@@ -145,7 +144,6 @@ def find_nr_layers():
 	train(model, training_set, optimizer)
 	test(model, testing_set)
 
-	# fintune two last layers instead of only last
 	print("Last 2 layers fine-tuned")
 	model = models.resnet18(weights="ResNet18_Weights.DEFAULT")
 	model.fc = nn.Linear(512, 37)
@@ -154,7 +152,6 @@ def find_nr_layers():
 	train(model, training_set, optimizer)
 	test(model, testing_set)
 
-	# fintune three last layers instead of only last
 	print("Last 3 layers fine-tuned")
 	model = models.resnet18(weights="ResNet18_Weights.DEFAULT")
 	model.fc = nn.Linear(512, 37)
