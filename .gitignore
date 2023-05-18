@@ -1,3 +1,6 @@
 /datasets
 
+vit-base-oxford/
 vit-base-beans/
+results/
+VIT.ipynb
