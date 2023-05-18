@@ -2,13 +2,18 @@ import torch
 import torch.nn as nn
 from torchvision import datasets, models, transforms
 import torch.optim as optim
+import matplotlib.pyplot as plt
 
 
 # Dataset directory
 data_dir = './datasets/oxfordIIITPet/'
 
 # Load the dataset for label extraction
-oxford_dataset = datasets.OxfordIIITPet(root=data_dir, download=False)
+oxford_dataset = datasets.OxfordIIITPet(root=data_dir, download=False, split="test")
+# train_data = datasets.OxfordIIITPet(root=data_dir, download=False, split="trainval")
+# add the datasets together
+# full_dataset = torch.utils.data.ConcatDataset([oxford_dataset, train_data])
+
 
 # Map new labels 'dog' and 'cat' to the original labels
 dogs = ['American Bulldog', 'American Pit Bull Terrier', 'Basset Hound', 'Beagle', 'Boxer', 'Chihuahua', 'English Cocker Spaniel', 'English Setter']
@@ -32,18 +37,22 @@ def target_transform(target):
 
 # Define the data transforms
 transform = transforms.Compose([
+		transforms.RandomCrop([300, 300], 1, pad_if_needed=True),
 		transforms.ToTensor()
 	])
 
 # Load the dataset with target transforms and change the classes
 oxford_dataset_dog_cat = datasets.OxfordIIITPet(root=data_dir, transform=transform, target_transform=target_transform)
 oxford_dataset_dog_cat.classes = ['dog', 'cat']
+oxford_dataset_dog_cat_test = datasets.OxfordIIITPet(root=data_dir, transform=transform, target_transform=target_transform, split="test")
+oxford_dataset_dog_cat_test.classes = ['dog', 'cat']
+oxford_dataset_dog_cat = torch.utils.data.ConcatDataset([oxford_dataset_dog_cat, oxford_dataset_dog_cat_test])
 
 
 
 # Parameters
 learning_rate = 0.001
-n_epochs = 25
+n_epochs = 75
 batch_size = 16
 loss_function = nn.CrossEntropyLoss()
 model_name = f"{n_epochs}-{batch_size}"
@@ -136,9 +145,25 @@ def train_normal():
 
 	# Training and testing
 	training_set, testing_set = torch.utils.data.random_split(oxford_dataset, [int(0.90 * len(oxford_dataset)), int(0.10 * len(oxford_dataset))])
-	# train(model, training_set, optimizer)
-	# test(model, testing_set)
+	train(model, training_set, optimizer)
+	test(model, testing_set)
 	training_accuracy(model, training_set)
+
+def train_normal_binary():
+	oxford_dataset = oxford_dataset_dog_cat 
+
+	model = models.resnet18(weights="ResNet18_Weights.DEFAULT")
+	model.fc = nn.Linear(512, 2)
+
+	optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+
+	# Training and testing
+	training_set, testing_set = torch.utils.data.random_split(oxford_dataset, [int(0.90 * len(oxford_dataset)), len(oxford_dataset) - int(0.90 * len(oxford_dataset))])
+	train(model, training_set, optimizer)
+	test(model, testing_set)
+	training_accuracy(model, training_set)
+
+
 
 
 
@@ -261,8 +286,15 @@ def find_batch_norm():
 	pass
 
 
+def report_plots(): 
+
+
+	plt.show()
+	pass 
+
+
 if __name__ == "__main__":
-	train()
+	train_normal_binary()
 
 
 
