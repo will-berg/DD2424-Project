@@ -52,38 +52,76 @@ oxford_dataset_dog_cat = torch.utils.data.ConcatDataset([oxford_dataset_dog_cat,
 
 # Parameters
 learning_rate = 0.001
-n_epochs = 75
+n_epochs = 10
 batch_size = 16
 loss_function = nn.CrossEntropyLoss()
 model_name = f"{n_epochs}-{batch_size}"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def train(model, training_set, optimizer):
+def train(model, training_set, validation_set, optimizer):
 	model.train()
 	model.to(device)
 
 	training_loader = torch.utils.data.DataLoader(training_set, batch_size=batch_size, shuffle=True)
+	validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=batch_size)
+
+	val_losses = []
+	train_losses = []
+	val_accs = []
+	train_accs = []
 
 	for epoch in range(n_epochs):
-		total_loss = 0
+		train_total_loss = 0
+		train_correct_predictions = 0
+		train_number_of_predictions = 0
 		for images, labels in training_loader:
 			images = images.to(device)
 			labels = labels.to(device)
 
 			# Forward pass
 			outputs = model(images)
-			loss = loss_function(outputs, labels)
+			train_loss = loss_function(outputs, labels)
 
 			# Backward pass and optimization
 			optimizer.zero_grad()
-			loss.backward()
+			train_loss.backward()
 			optimizer.step()
 
-			total_loss += loss.item()
+			train_total_loss += train_loss.item()
 
+			_, predictions = torch.max(outputs, 1)
+			train_correct_predictions += torch.sum(predictions == labels)
+			train_number_of_predictions += len(labels)
+
+		train_acc = train_correct_predictions / train_number_of_predictions
+		train_accs.append(train_acc)
 		# Print the average loss for the epoch
-		epoch_loss = total_loss / len(training_loader)
-		print(f"Epoch {epoch+1}/{n_epochs}, Loss: {epoch_loss:.4f}")
+		train_epoch_loss = train_total_loss / len(training_loader)
+		train_losses.append(train_epoch_loss)
+
+
+		with torch.no_grad():
+			val_epoch_loss = 0
+			val_correct_predictions = 0
+			val_number_of_predictions = 0
+			for images, labels in validation_loader:
+				images = images.to(device)
+				labels = labels.to(device)
+
+				# Forward pass, returns model output
+				probabilities = model(images)
+				val_loss = loss_function(probabilities, labels)
+				val_epoch_loss += val_loss.item()
+
+				_, predictions = torch.max(probabilities, 1)
+				val_correct_predictions += torch.sum(predictions == labels)
+				val_number_of_predictions += len(labels)
+
+			val_acc = val_correct_predictions / val_number_of_predictions
+			val_epoch_loss /= len(validation_loader)
+			val_losses.append(val_epoch_loss)
+			val_accs.append(val_acc)
+		print(f"Epoch {epoch+1}/{n_epochs}, Train Loss: {train_epoch_loss:.4f}, Val Loss: {val_epoch_loss:.4f}, Train Acc: {train_acc:.4f}, Val Acc: {val_acc:.4f}")
 
 	# Save the trained model
 	torch.save(model.state_dict(), f"models/{model_name}.pth")
@@ -144,8 +182,11 @@ def train_normal():
 	optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 	# Training and testing
-	training_set, testing_set = torch.utils.data.random_split(oxford_dataset, [int(0.90 * len(oxford_dataset)), int(0.10 * len(oxford_dataset))])
-	train(model, training_set, optimizer)
+	train_set_size = int(0.90 * len(oxford_dataset))
+	training_set, valtest_set = torch.utils.data.random_split(oxford_dataset, [train_set_size, len(oxford_dataset) - train_set_size])
+	val_set_size = int(0.50 * len(valtest_set))
+	validation_set, testing_set = torch.utils.data.random_split(valtest_set, [val_set_size, len(valtest_set) - val_set_size])
+	train(model, training_set, validation_set, optimizer)
 	test(model, testing_set)
 	training_accuracy(model, training_set)
 
@@ -155,11 +196,25 @@ def train_normal_binary():
 	model = models.resnet18(weights="ResNet18_Weights.DEFAULT")
 	model.fc = nn.Linear(512, 2)
 
+	for param in model.parameters():
+		param.requires_grad = False
+	for param in model.fc.parameters():
+		param.requires_grad = True
+
+
 	optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
 	# Training and testing
-	training_set, testing_set = torch.utils.data.random_split(oxford_dataset, [int(0.90 * len(oxford_dataset)), len(oxford_dataset) - int(0.90 * len(oxford_dataset))])
-	train(model, training_set, optimizer)
+	train_set_size = int(0.90 * len(oxford_dataset))
+	training_set, valtest_set = torch.utils.data.random_split(oxford_dataset, [train_set_size, len(oxford_dataset) - train_set_size])
+	print(len(training_set))
+	print(len(valtest_set))
+	val_set_size = int(0.50 * len(valtest_set))
+	validation_set, testing_set = torch.utils.data.random_split(valtest_set, [val_set_size, len(valtest_set) - val_set_size])
+	print(len(validation_set))
+	print(len(testing_set))
+
+	train(model, training_set, validation_set, optimizer)
 	test(model, testing_set)
 	training_accuracy(model, training_set)
 
@@ -167,37 +222,66 @@ def train_normal_binary():
 
 
 
-def find_nr_layers():
+def find_nr_layers(freeze_BN_layers=True):
 	transform = transforms.Compose([
 		transforms.RandomCrop([300, 300], 1, pad_if_needed=True),
 		transforms.ToTensor()
 	])
 	oxford_dataset = datasets.OxfordIIITPet("./datasets/oxfordIIITPet/", download=True, transform=transform)
 
-	training_set, testing_set = torch.utils.data.random_split(oxford_dataset, [int(0.90 * len(oxford_dataset)), int(0.10 * len(oxford_dataset))])
+	train_set_size = int(0.90 * len(oxford_dataset))
+	training_set, valtest_set = torch.utils.data.random_split(oxford_dataset, [train_set_size, len(oxford_dataset) - train_set_size])
+	val_set_size = int(0.50 * len(valtest_set))
+	validation_set, testing_set = torch.utils.data.random_split(valtest_set, [val_set_size, len(valtest_set) - val_set_size])
+
 
 	print("Last layer fine-tuned")
 	model = models.resnet18(weights="ResNet18_Weights.DEFAULT")
+	for param in model.parameters():
+		param.requires_grad = False
+	if not freeze_BN_layers:
+		for module in model.modules():
+			if isinstance(module, (nn.BatchNorm2d, nn.BatchNorm1d)):
+				for param in module.parameters():
+					param.requires_grad = True
+
 	model.fc = nn.Linear(512, 37)
+	model.fc.requires_grad = True
 	optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-	train(model, training_set, optimizer)
+	train(model, training_set, validation_set, optimizer)
 	test(model, testing_set)
 
 	print("Last 2 layers fine-tuned")
 	model = models.resnet18(weights="ResNet18_Weights.DEFAULT")
+	for param in model.parameters():
+		param.requires_grad = False
+	if not freeze_BN_layers:
+		for module in model.modules():
+			if isinstance(module, (nn.BatchNorm2d, nn.BatchNorm1d)):
+				for param in module.parameters():
+					param.requires_grad = True
 	model.fc = nn.Linear(512, 37)
+	model.fc.requires_grad = True
 	model.layer4.requires_grad = True
 	optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-	train(model, training_set, optimizer)
+	train(model, training_set, validation_set, optimizer)
 	test(model, testing_set)
 
 	print("Last 3 layers fine-tuned")
 	model = models.resnet18(weights="ResNet18_Weights.DEFAULT")
+	for param in model.parameters():
+		param.requires_grad = False
+	if not freeze_BN_layers:
+		for module in model.modules():
+			if isinstance(module, (nn.BatchNorm2d, nn.BatchNorm1d)):
+				for param in module.parameters():
+					param.requires_grad = True
 	model.fc = nn.Linear(512, 37)
+	model.fc.requires_grad = True
 	model.layer3.requires_grad = True
 	model.layer4.requires_grad = True
 	optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-	train(model, training_set, optimizer)
+	train(model, training_set, validation_set, optimizer)
 	test(model, testing_set)
 
 	# Seems weird that layer 3 and 4 are third and second to last, but copilot chat insists that it is correct with motivation :shrug:
@@ -294,7 +378,8 @@ def report_plots():
 
 
 if __name__ == "__main__":
-	train_normal_binary()
+	#train_normal_binary()
+	find_nr_layers(freeze_BN_layers=False)
 
 
 
