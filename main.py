@@ -52,7 +52,7 @@ oxford_dataset_dog_cat = torch.utils.data.ConcatDataset([oxford_dataset_dog_cat,
 
 # Parameters
 learning_rate = 0.001
-n_epochs = 10
+n_epochs = 25
 batch_size = 16
 loss_function = nn.CrossEntropyLoss()
 model_name = f"{n_epochs}-{batch_size}"
@@ -241,7 +241,7 @@ def find_nr_layers(freeze_BN_layers=True):
 		param.requires_grad = False
 	if not freeze_BN_layers:
 		for module in model.modules():
-			if isinstance(module, (nn.BatchNorm2d, nn.BatchNorm1d)):
+			if isinstance(module, (nn.BatchNorm2d, nn.BatchNorm1d, nn.LayerNorm)):
 				for param in module.parameters():
 					param.requires_grad = True
 
@@ -257,7 +257,7 @@ def find_nr_layers(freeze_BN_layers=True):
 		param.requires_grad = False
 	if not freeze_BN_layers:
 		for module in model.modules():
-			if isinstance(module, (nn.BatchNorm2d, nn.BatchNorm1d)):
+			if isinstance(module, (nn.BatchNorm2d, nn.BatchNorm1d, nn.LayerNorm)):
 				for param in module.parameters():
 					param.requires_grad = True
 	model.fc = nn.Linear(512, 37)
@@ -273,7 +273,7 @@ def find_nr_layers(freeze_BN_layers=True):
 		param.requires_grad = False
 	if not freeze_BN_layers:
 		for module in model.modules():
-			if isinstance(module, (nn.BatchNorm2d, nn.BatchNorm1d)):
+			if isinstance(module, (nn.BatchNorm2d, nn.BatchNorm1d, nn.LayerNorm)):
 				for param in module.parameters():
 					param.requires_grad = True
 	model.fc = nn.Linear(512, 37)
