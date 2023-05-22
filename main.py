@@ -3,6 +3,7 @@ import torch.nn as nn
 from torchvision import datasets, models, transforms
 from torch.utils.data import ConcatDataset, random_split
 import torch.optim as optim
+import torch.optim.lr_scheduler as lr_scheduler
 import matplotlib.pyplot as plt
 from datasets import load_dataset, load_metric
 from transformers import ViTFeatureExtractor, ViTForImageClassification, Trainer, TrainingArguments
@@ -17,10 +18,10 @@ data_dir = "./datasets/oxfordIIITPet"
 def load_dataset(binary_classification=False):
 
   transform = transforms.Compose([
-    #transforms.ColorJitter(hue=.05, saturation=.05),
+    # transforms.ColorJitter(hue=.05, saturation=.05),
     transforms.RandomCrop([400, 400], 1, pad_if_needed=True),
-    #transforms.RandomHorizontalFlip(),
-    #transforms.RandomRotation(20),
+    # transforms.RandomHorizontalFlip(),
+    # transforms.RandomRotation(20),
     transforms.ToTensor(),
   ])
 
@@ -91,7 +92,7 @@ def create_vit_model():
 
 def create_resnet_model(output_dimension=37, layers_to_fine_tune=1, fine_tune_normalization=True):
     # try model with more layers
-    model = models.resnet18(weights="ResNet18_Weights.DEFAULT").to(device)
+    model = models.resnet34(weights="ResNet34_Weights.DEFAULT").to(device)
     # replace last layer
     model.fc = nn.Linear(512, output_dimension).to(device)
     # freeze the correct number of layers
@@ -121,7 +122,7 @@ def evaluate(model, dataset, criterion):
   validation_loss = running_loss/len(validation_loader)
   return validation_accuracy, validation_loss
 
-def train(model, training_data, validation_data, optimizer, criterion, n_epochs=10):
+def train(model, training_data, validation_data, optimizer, scheduler, criterion, n_epochs=10):
 
   training_loader = torch.utils.data.DataLoader(training_data, batch_size=256, shuffle=True)
 
@@ -145,6 +146,7 @@ def train(model, training_data, validation_data, optimizer, criterion, n_epochs=
       running_loss += loss.item()
       _, predicted = torch.max(outputs, 1)
       correct_predictions += torch.sum(predicted == labels)
+    scheduler.step()
 
     training_accuracy = correct_predictions/len(training_data)
     training_loss = running_loss/len(training_loader)
@@ -163,7 +165,7 @@ def plot_loss(training_loss, validation_loss):
   plt.xlabel("Epoch")
   plt.ylabel("Loss")
   plt.legend()
-  plt.savefig("plots/loss.png")
+  plt.savefig("plots/binary_loss.png")
 
 def plot_accuracy(training_accuracy, validation_accuracy):
   # Convert tuple elements to floats
@@ -175,7 +177,7 @@ def plot_accuracy(training_accuracy, validation_accuracy):
   plt.xlabel("Epoch")
   plt.ylabel("Accuracy")
   plt.legend()
-  plt.savefig("plots/accuracy.png")
+  plt.savefig("plots/binary_accuracy.png")
 
 def plot(training_metrics):
   training_loss, training_accuracy, validation_loss, validation_accuracy = zip(*training_metrics)
@@ -195,7 +197,8 @@ def test(model, test_data, criterion, load_from_pretrained=False):
 
 
 if __name__ == "__main__":
-  do_binary_classification = False 
+  do_binary_classification = False
+  load_from_pretrained = True
   training_data, validation_data, test_data = load_dataset(binary_classification=do_binary_classification)
 
   model = create_resnet_model(
@@ -205,17 +208,21 @@ if __name__ == "__main__":
   )
 
   criterion = nn.CrossEntropyLoss()
-  optimizer = optim.Adam(model.parameters(), lr=0.001)
-  training_metrics = train(
-    model=model,
-    training_data=training_data,
-    validation_data=validation_data,
-    optimizer=optimizer,
-    criterion=criterion,
-    n_epochs=10
-  )
+  optimizer = optim.Adam(model.parameters(), lr=0.01)
+  scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+
+  if not load_from_pretrained:
+    training_metrics = train(
+      model=model,
+      training_data=training_data,
+      validation_data=validation_data,
+      optimizer=optimizer,
+      scheduler=scheduler,
+      criterion=criterion,
+      n_epochs=15,
+    )
 
   # plot(training_metrics)
-  test(model, test_data, criterion)
+  test(model, test_data, criterion, load_from_pretrained=load_from_pretrained)
 
 
