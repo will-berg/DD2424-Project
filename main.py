@@ -24,7 +24,7 @@ transform = nn.Sequential(
     # random grayscale
     kornia.augmentation.RandomGrayscale(p=0.2),
     # random blur
-    kornia.augmentation.RandomGaussianBlur((3, 3), (1.5, 1.5), p=0.2),
+    kornia.augmentation.RandomGaussianBlur((3, 3), (1.5, 1.5), p=0.1),
     # random affine
     kornia.augmentation.RandomAffine((-15, 20), p=0.1),
     
@@ -57,9 +57,9 @@ def load_dataset(binary_classification=False):
       else:
         raise ValueError(f"Unknown label: {target}")
 
-    train_dataset = datasets.OxfordIIITPet(root=data_dir, split="trainval", target_transform=target_transform)
+    train_dataset = datasets.OxfordIIITPet(root=data_dir, split="trainval", transform=transform, target_transform=target_transform)
     train_dataset.classes = ['dog', 'cat']
-    test_dataset = datasets.OxfordIIITPet(root=data_dir, split="test", target_transform=target_transform)
+    test_dataset = datasets.OxfordIIITPet(root=data_dir, split="test", transform=transform, target_transform=target_transform)
     test_dataset.classes = ['dog', 'cat']
     dataset = torch.utils.data.ConcatDataset([train_dataset, test_dataset])
 
@@ -171,15 +171,15 @@ def train(model, training_data, validation_data, optimizer, scheduler, criterion
 
   return training_metrics
 
-def plot_loss(training_loss, validation_loss):
+def plot_loss(training_loss, validation_loss, filename="loss.png"):
   plt.plot(training_loss, label="Training Loss")
   plt.plot(validation_loss, label="Validation Loss")
   plt.xlabel("Epoch")
   plt.ylabel("Loss")
   plt.legend()
-  plt.savefig("plots/binary_loss.png")
+  plt.savefig("plots/" + filename)
 
-def plot_accuracy(training_accuracy, validation_accuracy):
+def plot_accuracy(training_accuracy, validation_accuracy, filename="accuracy.png"):
   # Convert tuple elements to floats
   training_accuracy = [float(i) for i in training_accuracy]
   validation_accuracy = [float(i) for i in validation_accuracy]
@@ -189,13 +189,13 @@ def plot_accuracy(training_accuracy, validation_accuracy):
   plt.xlabel("Epoch")
   plt.ylabel("Accuracy")
   plt.legend()
-  plt.savefig("plots/binary_accuracy.png")
+  plt.savefig("plots/" + filename)
 
-def plot(training_metrics):
+def plot(training_metrics, loss_filename="loss.png", accuracy_filename="accuracy.png"):
   training_loss, training_accuracy, validation_loss, validation_accuracy = zip(*training_metrics)
-  plot_loss(training_loss, validation_loss)
+  plot_loss(training_loss, validation_loss, loss_filename)
   plt.close()
-  plot_accuracy(training_accuracy, validation_accuracy)
+  plot_accuracy(training_accuracy, validation_accuracy, accuracy_filename)
   plt.close()
 
 # Evaluate the most recently trained model on the test set
@@ -210,7 +210,7 @@ def test(model, test_data, criterion, load_from_pretrained=False):
 
 if __name__ == "__main__":
   do_binary_classification = False 
-  load_from_pretrained = False
+  load_from_pretrained = False 
   training_data, validation_data, test_data = load_dataset(binary_classification=do_binary_classification)
 
   model = create_resnet_model(
@@ -231,10 +231,11 @@ if __name__ == "__main__":
       optimizer=optimizer,
       scheduler=scheduler,
       criterion=criterion,
-      n_epochs=20,
+      n_epochs=50,
     )
 
-    plot(training_metrics)
+    prefix = "binary_" if do_binary_classification else "multiclass_"
+    plot(training_metrics, loss_filename=prefix + "loss.png", accuracy_filename=prefix + "accuracy.png")
 
   test(model, test_data, criterion, load_from_pretrained=load_from_pretrained)
 
