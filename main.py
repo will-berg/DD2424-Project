@@ -25,7 +25,7 @@ def load_dataset(binary_classification=False):
     dataset = ConcatDataset([train_dataset, test_dataset])
 
   # split the dataset
-  training_data, validation_data, test_data = random_split(dataset, [0.8, 0.1, 0.1]) 
+  training_data, validation_data, test_data = random_split(dataset, [0.8, 0.1, 0.1])
 
   return training_data, validation_data, test_data
 
@@ -41,7 +41,7 @@ def freeze_pretrained_layers(model, n_layers_to_unfreeze, unfreeze_normalization
     layers.append(model.layer4)
   if n == 3:
     layers.append(model.layer3)
-  
+
   for layer in layers:
     for param in layer.parameters():
       param.requires_grad = True
@@ -60,11 +60,11 @@ def create_resnet_model(output_dimension=37, layers_to_fine_tune=1, fine_tune_no
     freeze_pretrained_layers(model, layers_to_fine_tune, fine_tune_normalization)
 
     return model
-  
-def evaluate(model, validation_data, criterion):
+
+def evaluate(model, dataset, criterion):
   model.eval()
 
-  validation_loader = torch.utils.data.DataLoader(validation_data, batch_size=32, shuffle=False)
+  validation_loader = torch.utils.data.DataLoader(dataset, batch_size=32, shuffle=False)
 
   correct_predictions = 0
   running_loss = 0.0
@@ -79,8 +79,8 @@ def evaluate(model, validation_data, criterion):
       _, predicted = torch.max(outputs, 1)
       correct_predictions += torch.sum(predicted == labels)
 
-    
-    validation_accuracy = correct_predictions/len(validation_data)
+
+    validation_accuracy = correct_predictions/len(dataset)
     validation_loss = running_loss/len(validation_loader)
     return validation_accuracy, validation_loss
 
@@ -107,14 +107,50 @@ def train(model, training_data, validation_data, optimizer, criterion, n_epochs=
       running_loss += loss.item()
       _, predicted = torch.max(outputs, 1)
       correct_predictions += torch.sum(predicted == labels)
-    
+
     training_accuracy = correct_predictions/len(training_data)
     training_loss = running_loss/len(training_loader)
     validation_accuracy, validation_loss = evaluate(model, validation_data, criterion)
     print(f"Epoch {epoch+1}/{n_epochs} | Training Loss: {training_loss:.4f} | Training Accuracy: {training_accuracy:.4f} | Validation Loss: {validation_loss:.4f} | Validation Accuracy: {validation_accuracy:.4f}")
     training_metrics.append((training_loss, training_accuracy, validation_loss, validation_accuracy))
 
+  torch.save(model.state_dict(), f"models/model.pth")
+
   return training_metrics
+
+def plot_loss(training_loss, validation_loss):
+  plt.plot(training_loss, label="Training Loss")
+  plt.plot(validation_loss, label="Validation Loss")
+  plt.xlabel("Epoch")
+  plt.ylabel("Loss")
+  plt.legend()
+  plt.savefig("plots/loss.png")
+  plt.show()
+
+def plot_accuracy(training_accuracy, validation_accuracy):
+  # Convert tuple elements to floats
+  training_accuracy = [float(i) for i in training_accuracy]
+  validation_accuracy = [float(i) for i in validation_accuracy]
+
+  plt.plot(training_accuracy, label="Training Accuracy")
+  plt.plot(validation_accuracy, label="Validation Accuracy")
+  plt.xlabel("Epoch")
+  plt.ylabel("Accuracy")
+  plt.legend()
+  plt.savefig("plots/accuracy.png")
+  plt.show()
+
+def plot_all(training_metrics):
+  training_loss, training_accuracy, validation_loss, validation_accuracy = zip(*training_metrics)
+  plot_loss(training_loss, validation_loss)
+  plot_accuracy(training_accuracy, validation_accuracy)
+
+# Evaluate the most recently trained model on the test set
+def test(model, test_data, criterion):
+  model.load_state_dict(torch.load("models/model.pth"))
+  model.eval()
+  test_accuracy, test_loss = evaluate(model, test_data, criterion)
+  print(f"Test Loss: {test_loss:.4f} | Test Accuracy: {test_accuracy:.4f}")
 
 
 
@@ -122,22 +158,24 @@ if __name__ == "__main__":
   training_data, validation_data, test_data = load_dataset(binary_classification=False)
 
   model = create_resnet_model(
-    output_dimension=37, 
-    layers_to_fine_tune=1, 
+    output_dimension=37,
+    layers_to_fine_tune=1,
     fine_tune_normalization=False
   )
 
   criterion = nn.CrossEntropyLoss()
   optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-  train(
+  training_metrics = train(
     model=model,
     training_data=training_data,
     validation_data=validation_data,
-    optimizer=optimizer, 
-    criterion=criterion, 
+    optimizer=optimizer,
+    criterion=criterion,
     n_epochs=10
   )
 
+  plot_all(training_metrics)
+  # test(model, test_data, criterion)
 
 
