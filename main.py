@@ -16,15 +16,18 @@ data_dir = "./datasets/oxfordIIITPet"
 
 transform = nn.Sequential(
     # random vertical flip
-    kornia.augmentation.RandomVerticalFlip(p=0.2),
+    kornia.augmentation.RandomVerticalFlip(p=0.4),
     # random rotation
-    kornia.augmentation.RandomRotation(degrees=10),
+    kornia.augmentation.RandomRotation(degrees=20),
     # random color jitter
-    kornia.augmentation.ColorJitter(0.1, 0.1, 0.1, 0.1, p=0.3),
+    kornia.augmentation.ColorJitter(0.2, 0.2, 0.2, 0.2, p=0.3),
     # random grayscale
-    kornia.augmentation.RandomGrayscale(p=0.05),
+    kornia.augmentation.RandomGrayscale(p=0.2),
     # random blur
-    kornia.augmentation.RandomGaussianBlur((3, 3), (1.5, 1.5), p=0.1),
+    kornia.augmentation.RandomGaussianBlur((3, 3), (1.5, 1.5), p=0.2),
+    # random affine
+    kornia.augmentation.RandomAffine((-15, 20), p=0.1),
+    
   )
 
 def load_dataset(binary_classification=False):
@@ -207,12 +210,12 @@ def test(model, test_data, criterion, load_from_pretrained=False):
 
 if __name__ == "__main__":
   do_binary_classification = False 
-  load_from_pretrained = True
+  load_from_pretrained = False
   training_data, validation_data, test_data = load_dataset(binary_classification=do_binary_classification)
 
   model = create_resnet_model(
     output_dimension=2 if do_binary_classification else 37,
-    layers_to_fine_tune=1,
+    layers_to_fine_tune=2,
     fine_tune_normalization=False
   )
 
@@ -228,7 +231,7 @@ if __name__ == "__main__":
       optimizer=optimizer,
       scheduler=scheduler,
       criterion=criterion,
-      n_epochs=15,
+      n_epochs=20,
     )
 
     plot(training_metrics)
