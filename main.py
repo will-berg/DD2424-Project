@@ -8,19 +8,27 @@ from datasets import load_dataset, load_metric
 from transformers import ViTFeatureExtractor, ViTForImageClassification, Trainer, TrainingArguments
 import time
 import numpy as np
+import kornia
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 data_dir = "./datasets/oxfordIIITPet"
 
-
+transform = nn.Sequential(
+    # random vertical flip
+    kornia.augmentation.RandomVerticalFlip(p=0.2),
+    # random rotation
+    kornia.augmentation.RandomRotation(degrees=10),
+    # random color jitter
+    kornia.augmentation.ColorJitter(0.1, 0.1, 0.1, 0.1, p=0.3),
+    # random grayscale
+    kornia.augmentation.RandomGrayscale(p=0.05),
+    # random blur
+    kornia.augmentation.RandomGaussianBlur((3, 3), (1.5, 1.5), p=0.1),
+  )
 
 def load_dataset(binary_classification=False):
-
   transform = transforms.Compose([
-    #transforms.ColorJitter(hue=.05, saturation=.05),
-    transforms.RandomCrop([400, 400], 1, pad_if_needed=True),
-    #transforms.RandomHorizontalFlip(),
-    #transforms.RandomRotation(20),
+    transforms.RandomCrop([400, 400], pad_if_needed=True, padding=1),
     transforms.ToTensor(),
   ])
 
@@ -45,9 +53,9 @@ def load_dataset(binary_classification=False):
       else:
         raise ValueError(f"Unknown label: {target}")
 
-    train_dataset = datasets.OxfordIIITPet(root=data_dir, split="trainval", transform=transform, target_transform=target_transform)
+    train_dataset = datasets.OxfordIIITPet(root=data_dir, split="trainval", target_transform=target_transform)
     train_dataset.classes = ['dog', 'cat']
-    test_dataset = datasets.OxfordIIITPet(root=data_dir, split="test", transform=transform, target_transform=target_transform)
+    test_dataset = datasets.OxfordIIITPet(root=data_dir, split="test", target_transform=target_transform)
     test_dataset.classes = ['dog', 'cat']
     dataset = torch.utils.data.ConcatDataset([train_dataset, test_dataset])
 
@@ -91,7 +99,7 @@ def create_vit_model():
 
 def create_resnet_model(output_dimension=37, layers_to_fine_tune=1, fine_tune_normalization=True):
     # try model with more layers
-    model = models.resnet18(weights="ResNet18_Weights.DEFAULT").to(device)
+    model = models.resnet34(weights="ResNet34_Weights.DEFAULT").to(device)
     # replace last layer
     model.fc = nn.Linear(512, output_dimension).to(device)
     # freeze the correct number of layers
@@ -133,6 +141,7 @@ def train(model, training_data, validation_data, optimizer, criterion, n_epochs=
     running_loss = 0.0
     for inputs, labels in training_loader:
       inputs, labels = inputs.to(device), labels.to(device)
+      inputs = transform(inputs)
 
       optimizer.zero_grad()
 
@@ -196,6 +205,7 @@ def test(model, test_data, criterion, load_from_pretrained=False):
 
 if __name__ == "__main__":
   do_binary_classification = False 
+  load_from_pretrained = True
   training_data, validation_data, test_data = load_dataset(binary_classification=do_binary_classification)
 
   model = create_resnet_model(
@@ -206,16 +216,18 @@ if __name__ == "__main__":
 
   criterion = nn.CrossEntropyLoss()
   optimizer = optim.Adam(model.parameters(), lr=0.001)
-  training_metrics = train(
-    model=model,
-    training_data=training_data,
-    validation_data=validation_data,
-    optimizer=optimizer,
-    criterion=criterion,
-    n_epochs=10
-  )
 
-  # plot(training_metrics)
-  test(model, test_data, criterion)
+  if not load_from_pretrained:
+    training_metrics = train(
+      model=model,
+      training_data=training_data,
+      validation_data=validation_data,
+      optimizer=optimizer,
+      criterion=criterion,
+      n_epochs=50
+    )
+    plot(training_metrics)
+
+  test(model, test_data, criterion, load_from_pretrained=load_from_pretrained)
 
 
