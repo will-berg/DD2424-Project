@@ -3,6 +3,7 @@ import torch.nn as nn
 from torchvision import datasets, models, transforms
 from torch.utils.data import ConcatDataset, random_split
 import torch.optim as optim
+import torch.optim.lr_scheduler as lr_scheduler
 import matplotlib.pyplot as plt
 from datasets import load_dataset, load_metric
 from transformers import ViTFeatureExtractor, ViTForImageClassification, Trainer, TrainingArguments
@@ -129,7 +130,7 @@ def evaluate(model, dataset, criterion):
   validation_loss = running_loss/len(validation_loader)
   return validation_accuracy, validation_loss
 
-def train(model, training_data, validation_data, optimizer, criterion, n_epochs=10):
+def train(model, training_data, validation_data, optimizer, scheduler, criterion, n_epochs=10):
 
   training_loader = torch.utils.data.DataLoader(training_data, batch_size=256, shuffle=True)
 
@@ -154,6 +155,7 @@ def train(model, training_data, validation_data, optimizer, criterion, n_epochs=
       running_loss += loss.item()
       _, predicted = torch.max(outputs, 1)
       correct_predictions += torch.sum(predicted == labels)
+    scheduler.step()
 
     training_accuracy = correct_predictions/len(training_data)
     training_loss = running_loss/len(training_loader)
@@ -172,7 +174,7 @@ def plot_loss(training_loss, validation_loss):
   plt.xlabel("Epoch")
   plt.ylabel("Loss")
   plt.legend()
-  plt.savefig("plots/loss.png")
+  plt.savefig("plots/binary_loss.png")
 
 def plot_accuracy(training_accuracy, validation_accuracy):
   # Convert tuple elements to floats
@@ -184,7 +186,7 @@ def plot_accuracy(training_accuracy, validation_accuracy):
   plt.xlabel("Epoch")
   plt.ylabel("Accuracy")
   plt.legend()
-  plt.savefig("plots/accuracy.png")
+  plt.savefig("plots/binary_accuracy.png")
 
 def plot(training_metrics):
   training_loss, training_accuracy, validation_loss, validation_accuracy = zip(*training_metrics)
@@ -215,7 +217,8 @@ if __name__ == "__main__":
   )
 
   criterion = nn.CrossEntropyLoss()
-  optimizer = optim.Adam(model.parameters(), lr=0.001)
+  optimizer = optim.Adam(model.parameters(), lr=0.01)
+  scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
 
   if not load_from_pretrained:
     training_metrics = train(
@@ -223,9 +226,11 @@ if __name__ == "__main__":
       training_data=training_data,
       validation_data=validation_data,
       optimizer=optimizer,
+      scheduler=scheduler,
       criterion=criterion,
-      n_epochs=50
+      n_epochs=15,
     )
+
     plot(training_metrics)
 
   test(model, test_data, criterion, load_from_pretrained=load_from_pretrained)
