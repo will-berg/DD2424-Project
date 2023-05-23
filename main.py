@@ -63,17 +63,35 @@ def load_dataset(binary_classification=False):
     test_dataset = datasets.OxfordIIITPet(root=data_dir, split="test", transform=transform, target_transform=target_transform)
     test_dataset.classes = ['dog', 'cat']
     dataset = torch.utils.data.ConcatDataset([train_dataset, test_dataset])
-
+    # Save the modified dataset to disk
+    torch.save(dataset, 'datasets/oxfordIIITPet/dataset_mod_binary.pth')
 
   else:
     train_dataset = datasets.OxfordIIITPet(root=data_dir, download=True, split="trainval", transform=transform)
     test_dataset = datasets.OxfordIIITPet(root=data_dir, download=True, split="test", transform=transform)
     dataset = ConcatDataset([train_dataset, test_dataset])
+    # Save the modified dataset to disk
+    torch.save(dataset, 'datasets/oxfordIIITPet/dataset_mod.pth')
 
   # split the dataset
   training_data, validation_data, test_data = random_split(dataset, [0.8, 0.1, 0.1])
 
   return training_data, validation_data, test_data
+
+# Load already transformed dataset from disk
+def load_dataset_mod(binary_classification=False):
+  if binary_classification:
+    dataset = torch.load('datasets/oxfordIIITPet/dataset_mod_binary.pth')
+  else:
+    dataset = torch.load('datasets/oxfordIIITPet/dataset_mod.pth')
+
+  # split the dataset
+  training_data, validation_data, test_data = random_split(dataset, [0.8, 0.1, 0.1])
+
+  return training_data, validation_data, test_data
+
+  
+
 
 def freeze_pretrained_layers(model, n_layers_to_unfreeze, unfreeze_normalization=True):
   n = n_layers_to_unfreeze
