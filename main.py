@@ -26,13 +26,14 @@ transform = nn.Sequential(
     # random blur
     kornia.augmentation.RandomGaussianBlur((3, 3), (1.5, 1.5), p=0.1),
     # random affine
-    kornia.augmentation.RandomAffine((-15, 20), p=0.1),
-    
+    # kornia.augmentation.RandomAffine((-15, 20), p=0.1),
   )
 
 def load_dataset(binary_classification=False):
   transform = transforms.Compose([
-    transforms.RandomCrop([400, 400], pad_if_needed=True, padding=1),
+		transforms.Resize(256, antialias=True),
+    transforms.CenterCrop(224),
+    # transforms.RandomCrop([400, 400], pad_if_needed=True, padding=1),
     transforms.ToTensor(),
   ])
 
@@ -114,7 +115,7 @@ def create_resnet_model(output_dimension=37, layers_to_fine_tune=1, fine_tune_no
 def evaluate(model, dataset, criterion):
   model.eval()
 
-  validation_loader = torch.utils.data.DataLoader(dataset, batch_size=256, shuffle=False)
+  validation_loader = torch.utils.data.DataLoader(dataset, batch_size=128, shuffle=False)
 
   correct_predictions = 0
   running_loss = 0.0
@@ -135,7 +136,7 @@ def evaluate(model, dataset, criterion):
 
 def train(model, training_data, validation_data, optimizer, scheduler, criterion, n_epochs=10):
 
-  training_loader = torch.utils.data.DataLoader(training_data, batch_size=256, shuffle=True)
+  training_loader = torch.utils.data.DataLoader(training_data, batch_size=128, shuffle=True)
 
   training_metrics = []
   for epoch in range(n_epochs):
@@ -209,13 +210,13 @@ def test(model, test_data, criterion, load_from_pretrained=False):
 
 
 if __name__ == "__main__":
-  do_binary_classification = False 
-  load_from_pretrained = False 
+  do_binary_classification = False
+  load_from_pretrained = False
   training_data, validation_data, test_data = load_dataset(binary_classification=do_binary_classification)
 
   model = create_resnet_model(
     output_dimension=2 if do_binary_classification else 37,
-    layers_to_fine_tune=2,
+    layers_to_fine_tune=3,
     fine_tune_normalization=False
   )
 
@@ -231,12 +232,15 @@ if __name__ == "__main__":
       optimizer=optimizer,
       scheduler=scheduler,
       criterion=criterion,
-      n_epochs=50,
+      n_epochs=10,
     )
 
     prefix = "binary_" if do_binary_classification else "multiclass_"
-    plot(training_metrics, loss_filename=prefix + "loss.png", accuracy_filename=prefix + "accuracy.png")
+    # plot(training_metrics, loss_filename=prefix + "loss.png", accuracy_filename=prefix + "accuracy.png")
 
   test(model, test_data, criterion, load_from_pretrained=load_from_pretrained)
 
 
+# Final layer only, 10 epochs: 0.91
+# Two last layers only, 10 epochs: 0.89
+# Three last layers only, 10 epochs: 0.65
