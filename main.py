@@ -103,9 +103,9 @@ def create_vit_model():
 
 def create_resnet_model(output_dimension=37, layers_to_fine_tune=1, fine_tune_normalization=True):
     # try model with more layers
-    model = models.resnet34(weights="ResNet34_Weights.DEFAULT").to(device)
+    model = models.resnet152(weights="ResNet152_Weights.DEFAULT").to(device)
     # replace last layer
-    model.fc = nn.Linear(512, output_dimension).to(device)
+    model.fc = nn.Linear(2048, output_dimension).to(device)
     # freeze the correct number of layers
     freeze_pretrained_layers(model, layers_to_fine_tune, fine_tune_normalization)
 
@@ -215,9 +215,11 @@ if __name__ == "__main__":
 
   model = create_resnet_model(
     output_dimension=2 if do_binary_classification else 37,
-    layers_to_fine_tune=2,
+    layers_to_fine_tune=1,
     fine_tune_normalization=False
   )
+
+  print(model)
 
   criterion = nn.CrossEntropyLoss()
   optimizer = optim.Adam(model.parameters(), lr=0.01)
@@ -231,7 +233,7 @@ if __name__ == "__main__":
       optimizer=optimizer,
       scheduler=scheduler,
       criterion=criterion,
-      n_epochs=50,
+      n_epochs=15,
     )
 
     prefix = "binary_" if do_binary_classification else "multiclass_"

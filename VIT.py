@@ -48,6 +48,8 @@ model = ViTForImageClassification.from_pretrained(
     label2id={c: i for i, c in enumerate(labels)},
 )
 
+print(model)
+
 training_args = TrainingArguments(
     output_dir="./vit-base-oxford",
     per_device_train_batch_size=16,
