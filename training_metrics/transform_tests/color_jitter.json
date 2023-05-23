@@ -1,0 +1,1 @@
+{"training_metrics": [{"epoch": 1, "training_loss": 0.8140848709837251, "training_accuracy": 0.7874149680137634, "validation_loss": 0.2991033270955086, "validation_accuracy": 0.8965986371040344}], "test_accuracy": 0.9073569178581238}
