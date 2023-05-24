@@ -71,7 +71,7 @@ def load_dataset(binary_classification=False):
     dataset = ConcatDataset([train_dataset, test_dataset])
 
   # split the dataset
-  training_data, validation_data, test_data = random_split(dataset, [0.6, 0.1, 0.3])
+  training_data, validation_data, test_data = random_split(dataset, [0.8, 0.1, 0.1])
 
   return training_data, validation_data, test_data
 
@@ -157,8 +157,7 @@ def train(model, training_data, validation_data, optimizer, scheduler, criterion
       running_loss += loss.item()
       _, predicted = torch.max(outputs, 1)
       correct_predictions += torch.sum(predicted == labels)
-    if scheduler is not None:
-      scheduler.step()
+    scheduler.step()
 
     training_accuracy = correct_predictions/len(training_data)
     training_loss = running_loss/len(training_loader)
@@ -231,86 +230,86 @@ if __name__ == "__main__":
   learning_rates = [1e-1, 1e-3, 1e-4]
   schedulers = [("exponential", lr_scheduler.ExponentialLR, {"gamma": 0.9}), ("cyclic", lr_scheduler.CyclicLR, {"base_lr": 1e-4, "max_lr": 1e-2, "cycle_momentum": False}), ("constant", "constant", {"lr": 1e-3})]
 
-  # transform = create_transform()
-  # def test_transform(transform_dict):
-  #   transform = create_transform(**transform_dict)
-  #   model = create_resnet_model(
-  #     output_dimension=2 if do_binary_classification else 37,
-  #     layers_to_fine_tune=1,
-  #     fine_tune_normalization=False
-  #   )
+  transform = create_transform()
+  def test_transform(transform_dict):
+    transform = create_transform(**transform_dict)
+    model = create_resnet_model(
+      output_dimension=2 if do_binary_classification else 37,
+      layers_to_fine_tune=1,
+      fine_tune_normalization=False
+    )
 
-  #   criterion = nn.CrossEntropyLoss()
-  #   optimizer = optim.Adam(model.parameters(), lr=0.01)
-  #   scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
 
-  #   training_metrics = train(
-  #     model=model,
-  #     training_data=training_data,
-  #     validation_data=validation_data,
-  #     optimizer=optimizer,
-  #     scheduler=scheduler,
-  #     criterion=criterion,
-  #     transform=transform,
-  #     n_epochs=15,
-  #   )
+    training_metrics = train(
+      model=model,
+      training_data=training_data,
+      validation_data=validation_data,
+      optimizer=optimizer,
+      scheduler=scheduler,
+      criterion=criterion,
+      transform=transform,
+      n_epochs=15,
+    )
 
-  #   training_metrics = {
-  #     "training_metrics": training_metrics
-  #   }
-  #   training_metrics["test_accuracy"] = test(model, test_data, criterion, print_res=False)
+    training_metrics = {
+      "training_metrics": training_metrics
+    }
+    training_metrics["test_accuracy"] = test(model, test_data, criterion, print_res=False)
 
-  #   filename = "no_transform" if len(transform_dict.keys()) == 0 else "_".join(transform_dict.keys())
-  #   save_training_metrics(training_metrics, filename=f"transform_tests/{filename}.json")
+    filename = "no_transform" if len(transform_dict.keys()) == 0 else "_".join(transform_dict.keys())
+    save_training_metrics(training_metrics, filename=f"transform_tests/{filename}.json")
 
 
-  # try:
-  #   test_transform({})
+  try:
+    test_transform({})
 
-  #   for transform_property in transform_properties:
-  #     test_transform({transform_property: True})
+    for transform_property in transform_properties:
+      test_transform({transform_property: True})
 
-  #   test_transform({transform_property: True for transform_property in transform_properties})
-  # except:
-  #   pass
+    test_transform({transform_property: True for transform_property in transform_properties})
+  except:
+    pass
 
-  # def test_num_layers(fine_tune_layer, fine_tune_normalization=False):
-  #   transform = create_transform(**{transform_property: True for transform_property in transform_properties})
-  #   model = create_resnet_model(
-  #     output_dimension=2 if do_binary_classification else 37,
-  #     layers_to_fine_tune=fine_tune_layer,
-  #     fine_tune_normalization=freeze_normalization
-  #   )
+  def test_num_layers(fine_tune_layer, fine_tune_normalization=False):
+    transform = create_transform(**{transform_property: True for transform_property in transform_properties})
+    model = create_resnet_model(
+      output_dimension=2 if do_binary_classification else 37,
+      layers_to_fine_tune=fine_tune_layer,
+      fine_tune_normalization=freeze_normalization
+    )
 
-  #   criterion = nn.CrossEntropyLoss()
-  #   optimizer = optim.Adam(model.parameters(), lr=0.01)
-  #   scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=0.9)
 
-  #   training_metrics = train(
-  #     model=model,
-  #     training_data=training_data,
-  #     validation_data=validation_data,
-  #     optimizer=optimizer,
-  #     scheduler=scheduler,
-  #     criterion=criterion,
-  #     transform=transform,
-  #     n_epochs=15,
-  #   )
+    training_metrics = train(
+      model=model,
+      training_data=training_data,
+      validation_data=validation_data,
+      optimizer=optimizer,
+      scheduler=scheduler,
+      criterion=criterion,
+      transform=transform,
+      n_epochs=15,
+    )
 
-  #   training_metrics = {
-  #     "training_metrics": training_metrics
-  #   }
-  #   training_metrics["test_accuracy"] = test(model, test_data, criterion, print_res=False)
+    training_metrics = {
+      "training_metrics": training_metrics
+    }
+    training_metrics["test_accuracy"] = test(model, test_data, criterion, print_res=False)
 
-  #   save_training_metrics(training_metrics, filename=f"num_layer_tests/{str(fine_tune_layer) + ('incl_normalization' if fine_tune_normalization else '')}.json")
+    save_training_metrics(training_metrics, filename=f"num_layer_tests/{str(fine_tune_layer) + ('incl_normalization' if fine_tune_normalization else '')}.json")
 
-  # try:
-  #   # test fine tune layers
-  #   for fine_tune_normalization in [False, True]:
-  #     for fine_tune_layer in finetune_layers:
-  #       test_num_layers(fine_tune_layer, fine_tune_normalization=fine_tune_normalization)
-  # except:
-  #   pass
+  try:
+    # test fine tune layers
+    for fine_tune_normalization in [False, True]:
+      for fine_tune_layer in finetune_layers:
+        test_num_layers(fine_tune_layer, fine_tune_normalization=fine_tune_normalization)
+  except:
+    pass
   
   try:
     for scheduler_name, scheduler_class, scheduler_kwargs in schedulers:
