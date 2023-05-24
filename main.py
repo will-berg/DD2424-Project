@@ -71,7 +71,7 @@ def load_dataset(binary_classification=False):
     dataset = ConcatDataset([train_dataset, test_dataset])
 
   # split the dataset
-  training_data, validation_data, test_data = random_split(dataset, [0.8, 0.1, 0.1])
+  training_data, validation_data, test_data = random_split(dataset, [0.6, 0.1, 0.3])
 
   return training_data, validation_data, test_data
 
