@@ -39,3 +39,65 @@ plot_graph(no_transform_30['training_metrics'], title="No Transform 30%")
 
 incl_normalization_3 = load_training_metrics("results_30_test/training_metrics/num_layer_tests/3incl_normalization.json")
 plot_graph(incl_normalization_3['training_metrics'], title="3 Layers with Normalization")
+
+# All transform test in one graph
+plt.clf()
+color_jitter_10 = load_training_metrics("results_10_test/training_metrics/transform_tests/color_jitter.json")
+no_transform_10 = load_training_metrics("results_10_test/training_metrics/transform_tests/no_transform.json")
+random_gaussian_blue_10 = load_training_metrics("results_10_test/training_metrics/transform_tests/random_gaussian_blue.json")
+random_grayscale_10 = load_training_metrics("results_10_test/training_metrics/transform_tests/random_grayscale.json")
+random_rotation_10 = load_training_metrics("results_10_test/training_metrics/transform_tests/random_rotation.json")
+random_vertical_flip_10 = load_training_metrics("results_10_test/training_metrics/transform_tests/random_vertical_flip.json")
+random_vertical_flip_random_rotation_color_jitter_random_grayscale_random_gaussian_blue10 = load_training_metrics("results_10_test/training_metrics/transform_tests/random_vertical_flip_random_rotation_color_jitter_random_grayscale_random_gaussian_blue.json")
+
+plt.plot([x['epoch'] for x in color_jitter_10['training_metrics']], [x['validation_accuracy'] for x in color_jitter_10['training_metrics']], label="Color Jitter")
+plt.plot([x['epoch'] for x in no_transform_10['training_metrics']], [x['validation_accuracy'] for x in no_transform_10['training_metrics']], label="No Transform")
+plt.plot([x['epoch'] for x in random_gaussian_blue_10['training_metrics']], [x['validation_accuracy'] for x in random_gaussian_blue_10['training_metrics']], label="Random Gaussian Blue")
+plt.plot([x['epoch'] for x in random_grayscale_10['training_metrics']], [x['validation_accuracy'] for x in random_grayscale_10['training_metrics']], label="Random Grayscale")
+plt.plot([x['epoch'] for x in random_rotation_10['training_metrics']], [x['validation_accuracy'] for x in random_rotation_10['training_metrics']], label="Random Rotation")
+plt.plot([x['epoch'] for x in random_vertical_flip_10['training_metrics']], [x['validation_accuracy'] for x in random_vertical_flip_10['training_metrics']], label="Random Vertical Flip")
+plt.plot([x['epoch'] for x in random_vertical_flip_random_rotation_color_jitter_random_grayscale_random_gaussian_blue10['training_metrics']], [x['validation_accuracy'] for x in random_vertical_flip_random_rotation_color_jitter_random_grayscale_random_gaussian_blue10['training_metrics']], label="All Transforms")
+plt.xlabel("Epoch")
+plt.ylabel("Validation Accuracy")
+plt.title("Transform Tests")
+plt.legend()
+plt.savefig("./plots/transform_tests.png")
+
+def smooth(training_metrics):
+    training_metrics['training_metrics'][0]['smoothed_validation_accuracy'] = training_metrics['training_metrics'][0]['validation_accuracy']
+    for i in range(1, len(training_metrics['training_metrics'])):
+        training_metrics['training_metrics'][i]['smoothed_validation_accuracy'] = training_metrics['training_metrics'][i-1]['smoothed_validation_accuracy'] * 0.9 + training_metrics['training_metrics'][i]['validation_accuracy'] * 0.1
+    return training_metrics
+
+# function that does even lighter smoothing
+def lighter_smooth(training_metrics):
+    training_metrics['training_metrics'][0]['smoothed_validation_accuracy'] = training_metrics['training_metrics'][0]['validation_accuracy']
+    for i in range(1, len(training_metrics['training_metrics'])):
+        training_metrics['training_metrics'][i]['smoothed_validation_accuracy'] = training_metrics['training_metrics'][i-1]['smoothed_validation_accuracy'] * 0.99 + training_metrics['training_metrics'][i]['validation_accuracy'] * 0.01
+    return training_metrics
+
+# Same plot but with smoothed lines for all curves
+color_jitter_10 = smooth(color_jitter_10)
+no_transform_10 = smooth(no_transform_10)
+random_gaussian_blue_10 = smooth(random_gaussian_blue_10)
+random_grayscale_10 = smooth(random_grayscale_10)
+random_rotation_10 = smooth(random_rotation_10)
+random_vertical_flip_10 = smooth(random_vertical_flip_10)
+random_vertical_flip_random_rotation_color_jitter_random_grayscale_random_gaussian_blue10 = smooth(random_vertical_flip_random_rotation_color_jitter_random_grayscale_random_gaussian_blue10)
+
+plt.clf()
+plt.plot([x['epoch'] for x in color_jitter_10['training_metrics']], [x['smoothed_validation_accuracy'] for x in color_jitter_10['training_metrics']], label="Color Jitter")
+plt.plot([x['epoch'] for x in no_transform_10['training_metrics']], [x['smoothed_validation_accuracy'] for x in no_transform_10['training_metrics']], label="No Transform")
+plt.plot([x['epoch'] for x in random_gaussian_blue_10['training_metrics']], [x['smoothed_validation_accuracy'] for x in random_gaussian_blue_10['training_metrics']], label="Random Gaussian Blue")
+plt.plot([x['epoch'] for x in random_grayscale_10['training_metrics']], [x['smoothed_validation_accuracy'] for x in random_grayscale_10['training_metrics']], label="Random Grayscale")
+plt.plot([x['epoch'] for x in random_rotation_10['training_metrics']], [x['smoothed_validation_accuracy'] for x in random_rotation_10['training_metrics']], label="Random Rotation")
+plt.plot([x['epoch'] for x in random_vertical_flip_10['training_metrics']], [x['smoothed_validation_accuracy'] for x in random_vertical_flip_10['training_metrics']], label="Random Vertical Flip")
+plt.plot([x['epoch'] for x in random_vertical_flip_random_rotation_color_jitter_random_grayscale_random_gaussian_blue10['training_metrics']], [x['smoothed_validation_accuracy'] for x in random_vertical_flip_random_rotation_color_jitter_random_grayscale_random_gaussian_blue10['training_metrics']], label="Random Vertical Flip")
+
+
+plt.xlabel("Epoch")
+plt.ylabel("Validation Accuracy")
+plt.title("Transform Tests")
+plt.legend()
+plt.savefig("./plots/transform_tests_smoothed.png")
+
