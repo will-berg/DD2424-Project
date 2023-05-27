@@ -48,7 +48,7 @@ def compute_metrics(p):
 
 
 
-def train_model(transforms, learning_rate, scheduler_type):
+def train_model(transforms, learning_rate, scheduler_type, num_layers_frozen=-1):
   print("Training with transforms:", transforms, "learning_rate:", learning_rate, "scheduler_type:", scheduler_type)
 
   transform = []
@@ -71,6 +71,31 @@ def train_model(transforms, learning_rate, scheduler_type):
     id2label={str(i): c for i, c in enumerate(all_labels)},
     label2id={c: i for i, c in enumerate(all_labels)},
   )
+
+  # if num_layers_frozen != 13:
+  for param in model.parameters():
+    param.requires_grad = False
+
+  for param in model.classifier.parameters():
+    param.requires_grad = True
+  
+  
+  attention_layers = model.vit.encoder.layer
+  if num_layers_frozen != -1:
+    layers_to_unfreeze = 12 - num_layers_frozen
+    for param in attention_layers[layers_to_unfreeze:].parameters():
+      param.requires_grad = True
+
+    
+
+  
+  if num_layers_frozen == 0:
+    # unfreeze last normalization layer
+    for param in model.vit.layernorm.parameters():
+      param.requires_grad = True
+
+
+  
 
   device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
   model.to(device)
@@ -95,7 +120,14 @@ def train_model(transforms, learning_rate, scheduler_type):
   train_dataloader = DataLoader(ds_p["train"], batch_size=training_args.per_device_train_batch_size)
   eval_dataloader = DataLoader(ds_p["test"], batch_size=training_args.per_device_train_batch_size)
 
-  optimizer = torch.optim.Adam(model.parameters(), lr=training_args.learning_rate)
+  #optimizer = torch.optim.Adam(model.parameters(), lr=training_args.learning_rate)
+  optimizer = torch.optim.Adam([
+    {"params": model.vit.encoder.layer[:8].parameters(), "lr": 1e-4},
+    {"params": model.vit.encoder.layer[8:].parameters(), "lr": 1e-3},
+  ])
+
+
+
   #warmup_steps = int(0.1 * training_args.num_train_epochs * len(train_dataloader))
   #scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: min((epoch+1) / warmup_steps, 1.0))
   #scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.9)
@@ -168,41 +200,65 @@ def train_model(transforms, learning_rate, scheduler_type):
     with open(path, "w", ) as f:
       json.dump(training_metrics, f)
 
-  save_training_metrics(training_metrics, "vit-tests/" + f"{'_'.join(transforms)}_{learning_rate}_{scheduler_type}.json")
+  if num_layers_frozen == -1:
+    save_training_metrics(training_metrics, "vit-tests/" + f"{'_'.join(transforms)}_{learning_rate}_{scheduler_type}.json")
+  else:
+    save_training_metrics(training_metrics, "vit-tests/frozen_layers/per_layer_lr/" + f"{num_layers_frozen}_{learning_rate}.json")
 
-train_model([], 1e-4, "linear")
-for transform_applied in ["random_vertical_flip", "random_rotation", "color_jitter", "random_grayscale", "random_gaussian_blur"]:
-  train_model([transform_applied], 1e-4, "linear")
+  return training_metrics[-1]["validation_accuracy"] 
+
+#model = train_model([], 1e-4, "linear")
+#print(list(model.vit.encoder.layer[5].attention.attention.query.parameters())[0][0,0])
 
 all_transforms = ["random_vertical_flip", "random_rotation", "color_jitter", "random_grayscale", "random_gaussian_blur"]
-train_model(all_transforms, 1e-4, "linear")
 
-for lr in [1e-2, 1e-4, 1e-5]:
-  train_model(all_transforms, lr, "linear")
+best_acc = 0
+best_lr = 1e-3
 
-for scheduler_type in ["linear", "exponential", "constant"]:
-  train_model(all_transforms, 1e-4, scheduler_type)
+#for lr in [1e-2, 1e-3, 1e-4, 1e-5]:
+#  acc = train_model(all_transforms, lr, "linear")
+#  if acc > best_acc:
+#    best_acc = acc
+#    best_lr = lr
 
-
-
-#trainer = Trainer(
-#    model=model,
-#    args=training_args,
-#    data_collator=collate_fn,
-#    compute_metrics=compute_metrics,
-#    train_dataset=ds_p["train"],
-#    eval_dataset=ds_p["test"],
-#    tokenizer=feature_extractor,
-#)
+#train_model([], best_lr, "linear")
+#for transform_applied in ["random_vertical_flip", "random_rotation", "color_jitter", "random_grayscale", "random_gaussian_blur"]:
+#  train_model([transform_applied], best_lr, "linear")
 #
-#train_results = trainer.train()
-#trainer.save_model()
-#trainer.log_metrics("train", train_results.metrics)
-#trainer.save_metrics("train", train_results.metrics)
-#trainer.save_state()
+#train_model(all_transforms, best_lr, "linear")
 #
 #
-#metrics = trainer.evaluate(ds_p["test"])
-#trainer.log_metrics("eval", metrics)
-#trainer.save_metrics("eval", metrics)
+#for scheduler_type in ["linear", "exponential", "constant"]:
+#  train_model(all_transforms, best_lr, scheduler_type)
 #
+#for i in [2, 5, 8, 11]:
+for i in [8, 11]:
+  train_model(all_transforms, best_lr, "linear", i)
+
+#train_model(all_transforms, best_lr, "linear", 12)
+
+
+
+
+
+# trainer = Trainer(
+#     model=model,
+#     args=training_args,
+#     data_collator=collate_fn,
+#     compute_metrics=compute_metrics,
+#     train_dataset=ds_p["train"],
+#     eval_dataset=ds_p["test"],
+#     tokenizer=feature_extractor,
+# )
+# 
+# train_results = trainer.train()
+# trainer.save_model()
+# trainer.log_metrics("train", train_results.metrics)
+# trainer.save_metrics("train", train_results.metrics)
+# trainer.save_state()
+# 
+# 
+# metrics = trainer.evaluate(ds_p["test"])
+# trainer.log_metrics("eval", metrics)
+# trainer.save_metrics("eval", metrics)
+# #
